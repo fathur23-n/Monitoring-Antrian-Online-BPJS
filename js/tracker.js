@@ -58,11 +58,29 @@ $('themeBackdrop').addEventListener('click', () => {
 });
 
 // Sidebar toggle
-$('sidebarToggle').addEventListener('click', () => {
-  $('sidebar').classList.toggle('collapsed');
-  $('main').classList.toggle('shifted');
+function syncLayout(collapsed) {
+  const offset = collapsed ? 'var(--sidebar-min)' : 'var(--sidebar-w)';
+  const topbar = document.querySelector('.topbar');
+  if (topbar) topbar.style.left = offset;
   const footer = document.querySelector('.app-footer');
-  if (footer) footer.classList.toggle('footer-shifted');
+  if (footer) footer.style.marginLeft = offset;
+}
+
+$('sidebarToggle').addEventListener('click', () => {
+  const isCollapsed = $('sidebar').classList.toggle('collapsed');
+  $('main').classList.toggle('shifted');
+  syncLayout(isCollapsed);
+  localStorage.setItem('sidebar-collapsed', isCollapsed ? '1' : '0');
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('sidebar-collapsed') === '1') {
+    document.documentElement.style.setProperty('--dur', '0s');
+    $('sidebar').classList.add('collapsed');
+    $('main').classList.add('shifted');
+    syncLayout(true);
+    setTimeout(() => document.documentElement.style.removeProperty('--dur'), 50);
+  }
 });
 
 // Live clock

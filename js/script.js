@@ -88,11 +88,33 @@ const today = () => {
 // ════════════════════════════════════════
 //  SIDEBAR
 // ════════════════════════════════════════
-$('sidebarToggle').addEventListener('click', () => {
-  $('sidebar').classList.toggle('collapsed');
-  $('main').classList.toggle('shifted');
+function syncLayout(collapsed) {
+  const offset = collapsed ? 'var(--sidebar-min)' : 'var(--sidebar-w)';
+
+  // Topbar
+  const topbar = document.querySelector('.topbar');
+  if (topbar) topbar.style.left = offset;
+
+  // Footer
   const footer = document.querySelector('.app-footer');
-  if (footer) footer.classList.toggle('footer-shifted');
+  if (footer) footer.style.marginLeft = offset;
+}
+
+$('sidebarToggle').addEventListener('click', () => {
+  const isCollapsed = $('sidebar').classList.toggle('collapsed');
+  $('main').classList.toggle('shifted');
+  syncLayout(isCollapsed);
+  localStorage.setItem('sidebar-collapsed', isCollapsed ? '1' : '0');
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('sidebar-collapsed') === '1') {
+    document.documentElement.style.setProperty('--dur', '0s');
+    $('sidebar').classList.add('collapsed');
+    $('main').classList.add('shifted');
+    syncLayout(true);
+    setTimeout(() => document.documentElement.style.removeProperty('--dur'), 50);
+  }
 });
 
 // Nav switching
@@ -1230,3 +1252,5 @@ window.addEventListener('scroll', () => {
   btnScrollTop.classList.toggle('visible', window.scrollY > 300);
 });
 btnScrollTop.addEventListener('click', () => window.scrollTo({top:0,behavior:'smooth'}));
+
+window.addEventListener('resize', () => { syncLayout(localStorage.getItem('sidebar-collapsed') === '1'); });
