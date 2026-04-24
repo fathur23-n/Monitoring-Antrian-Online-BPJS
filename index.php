@@ -265,6 +265,9 @@ $isAdmin  = ($role === 'admin' && $username === 'rsdev');
             <button class="btn btn-primary" id="btnLoad">
               <i class="fas fa-search"></i> Tampilkan
             </button>
+            <button class="btn btn-ghost" id="btnForceRefresh" title="Paksa sync dari BPJS" style="display:none;">
+              <i class="fas fa-sync-alt"></i> Sync BPJS
+            </button>
           </div>
           <div class="filter-row" id="filterRow" style="display:none;">
             <div class="filter-chips">

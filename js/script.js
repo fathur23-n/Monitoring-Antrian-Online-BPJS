@@ -890,9 +890,11 @@ $('btnBatalKirim').addEventListener('click', async () => {
     if (data?.metadata?.code === 200) {
       showToast('Antrean berhasil dibatalkan!', 'success');
       closeModal('modalBatal');
+
+      // Update UI lokal — tidak re-fetch BPJS
+      updateRowStatusLocally(activeBatal.kodebooking, 'Dibatalkan');
       activeBatal = null;
-      // Refresh tabel
-      loadAntrean();
+
     } else if (data?.metadata?.code === 409) {
       showToast(data.metadata.message, 'info');
       closeModal('modalBatal');
@@ -907,6 +909,58 @@ $('btnBatalKirim').addEventListener('click', async () => {
     btn.innerHTML = '<i class="fas fa-ban"></i> Konfirmasi Batal';
   }
 });
+
+// ════════════════════════════════════════
+//  UPDATE ROW STATUS LOCALLY (tanpa re-fetch BPJS)
+// ════════════════════════════════════════
+function updateRowStatusLocally(kodebooking, newStatus) {
+  // Update allData cache
+  allData = allData.map(d => {
+    if (d.kodebooking === kodebooking) return { ...d, status: newStatus };
+    return d;
+  });
+
+  // Update chip counts
+  updateChipCounts(allData);
+
+  // Cari baris di tabel dan update langsung
+  const rows = document.querySelectorAll('#tblBody tr');
+  rows.forEach(tr => {
+    const kodeCell = tr.querySelector('code');
+    if (!kodeCell) return;
+    const kode = kodeCell.textContent.trim();
+    if (kode !== kodebooking) return;
+
+    // Update status badge
+    const statusTd = tr.querySelectorAll('td')[6];
+    if (statusTd) statusTd.innerHTML = getStatusBadge(newStatus);
+
+    // Update kolom aksi — hanya riwayat
+    const aksiTd = tr.querySelector('.aksi-wrap');
+    if (aksiTd) {
+      aksiTd.innerHTML = `
+        <div class="task-group"></div>
+        <div class="util-group">
+          <button class="btn-history btn-show-riwayat" data-kode="${kodebooking}">
+            <i class="fas fa-history"></i> Riwayat
+          </button>
+        </div>`;
+      // Re-bind riwayat button
+      aksiTd.querySelector('.btn-show-riwayat').addEventListener('click', async () => {
+        $('modalRiwayatTitle').textContent = `Task Terkirim  •  ${kodebooking}`;
+        $('timelineContainer').innerHTML = `<div class="tl-empty"><i class="fas fa-spinner fa-spin"></i><p>Memuat...</p></div>`;
+        openModal('modalRiwayat');
+        const result = await fetchRiwayatTask(kodebooking);
+        renderRiwayatTable(result);
+      });
+    }
+  });
+
+  // Kalau DataTable aktif, redraw tanpa destroy
+  if (jQuery.fn.DataTable.isDataTable('#tblAntrean')) {
+    jQuery('#tblAntrean').DataTable().draw(false);
+  }
+}
 
 // ════════════════════════════════════════
 //  FILTER CHIPS
@@ -931,6 +985,20 @@ function applyFilter(filter) {
 //  LOAD ANTREAN
 // ════════════════════════════════════════
 $('btnLoad').addEventListener('click', loadAntrean);
+
+// Force refresh — sync dari BPJS
+const btnForceRefresh = $('btnForceRefresh');
+if (btnForceRefresh) {
+  btnForceRefresh.addEventListener('click', async () => {
+    const tanggal = $('tglAntrean').value;
+    if (!tanggal) return;
+    btnForceRefresh.disabled = true;
+    btnForceRefresh.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sync...';
+    await loadAntrean(true); // force=true
+    btnForceRefresh.disabled = false;
+    btnForceRefresh.innerHTML = '<i class="fas fa-sync-alt"></i> Sync BPJS';
+  });
+}
 $('tglAntrean').addEventListener('keydown', e => { if(e.key==='Enter') loadAntrean(); });
 
 async function loadAntrean() {
@@ -945,13 +1013,21 @@ async function loadAntrean() {
   const btn = $('btnLoad');
   btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Memuat...';
   try {
-    const resp = await fetch(`get_antrean_by_tanggal.php?tanggal=${encodeURIComponent(tanggal)}`);
+    const forceRefresh = arguments[0] === true;
+    const resp = await fetch(`get_antrean_by_tanggal.php?tanggal=${encodeURIComponent(tanggal)}${forceRefresh ? '&force=1' : ''}`);
     const data = await resp.json();
     if (data?.metadata?.code===200&&Array.isArray(data.response)) {
       allData = data.response;
       updateChipCounts(allData);
       renderTable(allData);
-      if (allData.length>0) { showToast(`${allData.length} antrean ditemukan.`,'success'); computeStats(allData,tanggal); }
+      if (allData.length>0) {
+        const src = data.from_cache
+          ? `${allData.length} antrean (dari cache · klik Sync BPJS untuk update)`
+          : `${allData.length} antrean ditemukan.`;
+        showToast(src, data.from_cache ? 'info' : 'success');
+        computeStats(allData, tanggal);
+        if ($('btnForceRefresh')) $('btnForceRefresh').style.display = 'inline-flex';
+      }
     } else { renderTable([]); showToast(data?.metadata?.message||'Gagal memuat antrean.','error'); }
   } catch { renderTable([]); showToast('Gagal memuat data dari server.','error'); }
   finally { btn.disabled=false; btn.innerHTML='<i class="fas fa-search"></i> Tampilkan'; }

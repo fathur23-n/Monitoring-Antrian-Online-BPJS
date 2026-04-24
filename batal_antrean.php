@@ -156,4 +156,36 @@ try {
     $lg->execute([$uname, $fname, $ket, $ip, $now]);
 } catch (Exception $e) { /* silent */ }
 
-echo json_encode(['metadata' => ['code' => 200, 'message' => 'Antrean berhasil dibatalkan']]);
+// ─── UPDATE CACHE LOKAL ─────────────────────
+// Ambil tanggal dari referensi_mobilejkn_bpjs
+$tglCache = date('Y-m-d');
+try {
+    $tglRow = $pdo->prepare("SELECT tanggalperiksa FROM referensi_mobilejkn_bpjs WHERE nobooking = ? LIMIT 1");
+    $tglRow->execute([$kodebooking]);
+    $tglData = $tglRow->fetch();
+    if ($tglData && !empty($tglData['tanggalperiksa'])) {
+        $tglCache = $tglData['tanggalperiksa'];
+    }
+} catch (Exception $e) { /* pakai hari ini */ }
+
+try {
+    $cacheRow = $pdo->prepare(
+        "SELECT id, data_json FROM cache_antrean WHERE tanggal = ? AND kodebooking = ? LIMIT 1"
+    );
+    $cacheRow->execute([$tglCache, $kodebooking]);
+    $cRow = $cacheRow->fetch();
+    if ($cRow) {
+        $cData = json_decode($cRow['data_json'], true);
+        if ($cData) {
+            $cData['status'] = 'Dibatalkan';
+            $pdo->prepare("UPDATE cache_antrean SET data_json = ?, is_stale = 0 WHERE id = ?")
+                ->execute([json_encode($cData), $cRow['id']]);
+        }
+    }
+} catch (Exception $e) { /* silent */ }
+
+echo json_encode([
+    'metadata' => ['code' => 200, 'message' => 'Antrean berhasil dibatalkan'],
+    'tanggal'  => $tglCache,
+    'kodebooking' => $kodebooking,
+]);
