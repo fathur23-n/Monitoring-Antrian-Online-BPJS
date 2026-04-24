@@ -61,6 +61,8 @@ $('themeBackdrop').addEventListener('click', () => {
 $('sidebarToggle').addEventListener('click', () => {
   $('sidebar').classList.toggle('collapsed');
   $('main').classList.toggle('shifted');
+  const footer = document.querySelector('.app-footer');
+  if (footer) footer.classList.toggle('footer-shifted');
 });
 
 // Live clock

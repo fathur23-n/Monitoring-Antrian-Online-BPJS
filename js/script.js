@@ -61,6 +61,7 @@ function buildThemePanel() {
 let allData    = [];
 let dashData   = [];
 let activeTask = null;
+let activeBatal = null; // { kodebooking, norekammedis, kodepoli, no_rawat }
 let activeView = 'dashboard';
 
 // ════════════════════════════════════════
@@ -74,11 +75,24 @@ const today = () => {
 };
 
 // ════════════════════════════════════════
+//  INIT VIEW FROM URL PARAM
+// ════════════════════════════════════════
+(function initViewFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const view   = params.get('view');
+  if (view && document.getElementById(`view-${view}`)) {
+    switchView(view);
+  }
+})();
+
+// ════════════════════════════════════════
 //  SIDEBAR
 // ════════════════════════════════════════
 $('sidebarToggle').addEventListener('click', () => {
   $('sidebar').classList.toggle('collapsed');
   $('main').classList.toggle('shifted');
+  const footer = document.querySelector('.app-footer');
+  if (footer) footer.classList.toggle('footer-shifted');
 });
 
 // Nav switching
@@ -658,7 +672,12 @@ function renderTable(data) {
     ).join('') : '';
     const utilGroup = `
       <button class="btn-history btn-show-riwayat" data-kode="${item.kodebooking}"><i class="fas fa-history"></i> Riwayat</button>
-      ${showTasks ? `<button class="btn-batal btn-batal-antrean" data-kode="${item.kodebooking}"><i class="fas fa-ban"></i> Batal</button>` : ''}`;
+      ${showTasks ? `<button class="btn-batal btn-batal-antrean"
+        data-kode="${item.kodebooking}"
+        data-rm="${item.norekammedis||''}"
+        data-poli="${item.kodepoli||''}"
+        data-rawat="${item.norekammedis||''}">
+        <i class="fas fa-ban"></i> Batal</button>` : ''}`;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="color:var(--text-muted);font-weight:600;">${idx+1}</td>
@@ -734,7 +753,22 @@ function bindTableButtons() {
   });
   // Batal
   document.querySelectorAll('.btn-batal-antrean:not(:disabled)').forEach(btn => {
-    btn.addEventListener('click', () => showToast('Fitur batal antrean akan segera hadir.','info'));
+    btn.addEventListener('click', () => {
+      activeBatal = {
+        kodebooking:  btn.dataset.kode,
+        norekammedis: btn.dataset.rm   || '',
+        kodepoli:     btn.dataset.poli || '',
+        no_rawat:     btn.dataset.rawat|| '',
+      };
+      $('modalBatalTitle').textContent  = `Batal Antrean • ${activeBatal.kodebooking}`;
+      $('batalKode').textContent        = activeBatal.kodebooking;
+      $('batalRM').textContent          = activeBatal.norekammedis || '—';
+      $('batalPoli').textContent        = activeBatal.kodepoli     || '—';
+      $('batalAlasan').value            = 'Batal tidak hadir';
+      $('batalCharCount').textContent   = String('Batal tidak hadir'.length);
+      openModal('modalBatal');
+      setTimeout(() => $('batalAlasan').focus(), 100);
+    });
   });
 }
 
@@ -811,6 +845,68 @@ function renderRiwayatTable(result) {
     </div>`;
   }).join('')}</div>`;
 }
+
+// ════════════════════════════════════════
+//  MODAL BATAL
+// ════════════════════════════════════════
+$('btnBatalCancel').addEventListener('click', () => {
+  closeModal('modalBatal');
+  activeBatal = null;
+});
+
+// Char counter
+$('batalAlasan').addEventListener('input', function() {
+  $('batalCharCount').textContent = this.value.length;
+});
+
+$('btnBatalKirim').addEventListener('click', async () => {
+  if (!activeBatal) return;
+  const alasan = $('batalAlasan').value.trim();
+  if (!alasan) {
+    $('batalAlasan').style.borderColor = 'var(--red-500)';
+    $('batalAlasan').focus();
+    showToast('Isi alasan pembatalan terlebih dahulu.', 'error');
+    return;
+  }
+  $('batalAlasan').style.borderColor = '';
+
+  const btn = $('btnBatalKirim');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
+
+  try {
+    const resp = await fetch('batal_antrean.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kodebooking:  activeBatal.kodebooking,
+        keterangan:   alasan,
+        norekammedis: activeBatal.norekammedis,
+        no_rawat:     activeBatal.no_rawat,
+      }),
+    });
+    const data = await resp.json();
+
+    if (data?.metadata?.code === 200) {
+      showToast('Antrean berhasil dibatalkan!', 'success');
+      closeModal('modalBatal');
+      activeBatal = null;
+      // Refresh tabel
+      loadAntrean();
+    } else if (data?.metadata?.code === 409) {
+      showToast(data.metadata.message, 'info');
+      closeModal('modalBatal');
+    } else {
+      showToast(data?.metadata?.message || 'Gagal membatalkan antrean.', 'error');
+    }
+  } catch(e) {
+    showToast('Terjadi kesalahan koneksi.', 'error');
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-ban"></i> Konfirmasi Batal';
+  }
+});
 
 // ════════════════════════════════════════
 //  FILTER CHIPS

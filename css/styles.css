@@ -459,3 +459,61 @@ table.dataTable tbody tr:hover td{background:var(--p50)!important;}
 .sa-copy-btn:hover{color:#fff;}
 .sa-bank-name-owner{font-size:10px;color:rgba(255,255,255,.35);padding-left:2px;}
 .sidebar.collapsed .sa-donate{display:none;}
+
+/* ══════════════════════════════════════════
+   FOOTER
+══════════════════════════════════════════ */
+.app-footer{
+  margin-left:var(--sidebar-w);
+  transition:margin-left var(--dur) var(--ease);
+  padding:14px 28px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:8px;
+  border-top:1px solid var(--border);
+  background:var(--surface);
+  font-size:12px;
+  color:var(--text-muted);
+}
+.app-footer strong{color:var(--p600);}
+.app-footer i{font-size:11px;}
+.main.shifted ~ .app-footer{margin-left:var(--sidebar-min);}
+@media(max-width:768px){.app-footer{margin-left:var(--sidebar-min);padding:12px 16px;}}
+.app-footer.footer-shifted{margin-left:var(--sidebar-min);}
+
+/* ══════════════════════════════════════════
+   MODAL BATAL ANTREAN
+══════════════════════════════════════════ */
+.btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;
+  box-shadow:0 4px 14px rgba(239,68,68,.3);}
+.btn-danger:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(239,68,68,.4);}
+.btn-danger:disabled{opacity:.5;cursor:not-allowed!important;transform:none!important;}
+
+.batal-info-box{background:var(--gray-50);border:1px solid var(--gray-100);
+  border-radius:var(--r-lg);padding:14px 16px;margin-bottom:18px;display:flex;
+  flex-direction:column;gap:10px;}
+.batal-info-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.batal-info-label{font-size:12px;font-weight:600;color:var(--text-muted);
+  display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.batal-info-label i{color:var(--p500);font-size:11px;}
+.batal-info-val{font-size:13px;font-weight:700;color:var(--text-primary);
+  text-align:right;word-break:break-all;}
+
+.batal-alasan-wrap{margin-bottom:14px;}
+.batal-alasan-label{display:flex;align-items:center;gap:7px;font-size:13px;
+  font-weight:700;color:var(--text-primary);margin-bottom:8px;}
+.batal-alasan-label i{color:var(--red-500);}
+.batal-textarea{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);
+  border-radius:var(--r-md);background:var(--surface);font-size:13.5px;
+  color:var(--text-primary);outline:none;resize:vertical;
+  font-family:inherit;line-height:1.5;transition:border-color var(--dur),box-shadow var(--dur);}
+.batal-textarea:focus{border-color:var(--red-500);box-shadow:0 0 0 3px rgba(239,68,68,.12);}
+.batal-textarea::placeholder{color:var(--text-muted);}
+.batal-char-count{font-size:11px;color:var(--text-muted);text-align:right;margin-top:5px;}
+
+.batal-warning{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:#fff5f5;border:1px solid #fecaca;border-radius:var(--r-md);
+  font-size:12.5px;color:var(--red-800);font-weight:600;}
+.batal-warning i{color:var(--red-500);font-size:14px;flex-shrink:0;}

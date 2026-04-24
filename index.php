@@ -339,6 +339,12 @@ $isAdmin  = ($role === 'admin' && $username === 'rsdev');
   </main>
 </div>
 
+<!-- FOOTER -->
+<div class="app-footer">
+  <span>© <?= date('Y') ?> Antrol BPJS — v1.0</span>
+  <span>Made with <i class="fas fa-heart" style="color:#f87171;"></i> by <strong>Mohammad Fathur Roziq</strong></span>
+</div>
+
 <!-- THEME PANEL -->
 <div class="theme-backdrop" id="themeBackdrop"></div>
 <div class="theme-panel" id="themePanel">
@@ -391,6 +397,51 @@ $isAdmin  = ($role === 'admin' && $username === 'rsdev');
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btnTutupRiwayat"><i class="fas fa-times"></i> Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: BATAL ANTREAN -->
+<div class="modal-overlay" id="modalBatal">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header" style="background:linear-gradient(135deg,#7f1d1d,#dc2626);">
+      <div class="modal-icon" style="background:rgba(255,255,255,.15);"><i class="fas fa-ban"></i></div>
+      <div>
+        <h2 class="modal-title" id="modalBatalTitle">Batal Antrean</h2>
+        <p class="modal-sub">Tindakan ini tidak dapat dibatalkan</p>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="batal-info-box">
+        <div class="batal-info-row">
+          <span class="batal-info-label"><i class="fas fa-ticket-alt"></i> Kode Booking</span>
+          <span class="batal-info-val" id="batalKode">—</span>
+        </div>
+        <div class="batal-info-row">
+          <span class="batal-info-label"><i class="fas fa-id-card"></i> No RM</span>
+          <span class="batal-info-val" id="batalRM">—</span>
+        </div>
+        <div class="batal-info-row">
+          <span class="batal-info-label"><i class="fas fa-hospital"></i> Poli</span>
+          <span class="batal-info-val" id="batalPoli">—</span>
+        </div>
+      </div>
+      <div class="batal-alasan-wrap">
+        <label class="batal-alasan-label">
+          <i class="fas fa-comment-alt"></i> Alasan Pembatalan <span style="color:var(--red-500);">*</span>
+        </label>
+        <textarea id="batalAlasan" class="batal-textarea" rows="3" maxlength="200"
+          placeholder="Tuliskan alasan pembatalan antrean..."></textarea>
+        <div class="batal-char-count"><span id="batalCharCount">0</span>/200 karakter</div>
+      </div>
+      <div class="batal-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Data akan dikirim ke BPJS dan tidak dapat dipulihkan.</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btnBatalCancel"><i class="fas fa-times"></i> Batal</button>
+      <button class="btn btn-danger" id="btnBatalKirim"><i class="fas fa-ban"></i> Konfirmasi Batal</button>
     </div>
   </div>
 </div>

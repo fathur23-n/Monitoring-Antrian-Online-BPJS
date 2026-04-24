@@ -38,23 +38,30 @@ $initials = mb_strtoupper(mb_substr($fullname, 0, 2));
       <div class="brand-icon"><i class="fas fa-hospital-alt"></i></div>
       <span class="brand-text">Antrol BPJS</span>
     </div>
-    <div class="sidebar-user">
-      <div class="su-avatar"><?= $initials ?></div>
-      <div class="su-info">
-        <div class="su-name"><?= htmlspecialchars($fullname) ?></div>
-        <div class="su-username">@<?= htmlspecialchars($username) ?></div>
-      </div>
-      <a href="logout.php" class="su-logout" title="Logout"><i class="fas fa-sign-out-alt"></i></a>
-    </div>
     <nav class="sidebar-nav">
       <a href="index.php" class="nav-item"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
       <a href="index.php?view=antrean" class="nav-item"><i class="fas fa-calendar-check"></i><span>Antrean</span></a>
+      <a href="#" class="nav-item nav-disabled" title="Segera hadir">
+        <i class="fas fa-ban"></i><span>Riwayat Batal</span>
+        <small class="badge-soon">Soon</small>
+      </a>
       <a href="tracker.php" class="nav-item active"><i class="fas fa-list-alt"></i><span>Log Aktivitas</span></a>
     </nav>
     <div class="sidebar-about">
       <div class="sa-version">v 1.0</div>
       <div class="sa-name">Antrol BPJS</div>
       <div class="sa-desc">Sistem pengiriman antrean online BPJS Kesehatan untuk manajemen antrian pasien rawat jalan.</div>
+      <div class="sa-donate">
+        <div class="sa-donate-label"><i class="fas fa-heart"></i> Dukung Developer</div>
+        <div class="sa-donate-bank">
+          <span class="sa-bank-name">BNI</span>
+          <span class="sa-bank-rek">1635501500</span>
+          <button class="sa-copy-btn" onclick="navigator.clipboard.writeText('1635501500').then(()=>{this.innerHTML='<i class=\'fas fa-check\'></i>';setTimeout(()=>{this.innerHTML='<i class=\'fas fa-copy\'></i>';},1500)})" title="Salin nomor rekening">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+        <div class="sa-bank-name-owner">a.n Mohammad Fathur Roziq</div>
+      </div>
     </div>
     <button class="sidebar-toggle" id="sidebarToggle">
       <i class="fas fa-chevron-left" id="toggleIcon"></i>
@@ -157,6 +164,12 @@ $initials = mb_strtoupper(mb_substr($fullname, 0, 2));
       </div>
     </div>
   </main>
+</div>
+
+<!-- FOOTER -->
+<div class="app-footer">
+  <span>© <?= date('Y') ?> Antrol BPJS — v1.0</span>
+  <span>Made with <i class="fas fa-heart" style="color:#f87171;"></i> by <strong>Mohammad Fathur Roziq</strong></span>
 </div>
 
 <!-- THEME PANEL -->
