@@ -179,6 +179,13 @@ function getStatusBadge(status) {
   return `<span class="sbadge sbadge-other">${status||'-'}</span>`;
 }
 function isDone(status) {
+  // Hanya "batal" yang benar2 done untuk keperluan disable tombol
+  // "selesai" diabaikan karena bisa jadi farmasi belum selesai (task 6,7)
+  return String(status||'').toLowerCase().includes('batal');
+}
+
+function isBenarSelesai(status) {
+  // Untuk keperluan badge/filter saja
   const s = String(status||'').toLowerCase();
   return s.includes('selesai') || s.includes('batal');
 }
@@ -303,14 +310,14 @@ function renderPctSection(data) {
   let brgS=0,brgB=0,brgX=0;
 
   data.forEach(d => {
-    const src  = String(d.sumberdata||'').toLowerCase();
-    const s    = String(d.status||'').toLowerCase();
-    const done = s.includes('selesai');
-    const batal= s.includes('batal');
-    const isJkn = src.includes('mobile jkn') || src.includes('jkn');
+    const src   = String(d.sumberdata||'').toLowerCase();
+    const s     = String(d.status||'').toLowerCase();
+    const done  = s.includes('selesai');
+    const batal = s.includes('batal');
+    const isJkn = src === 'mobile jkn';
 
-    if (done)       { allS++; isJkn ? jknS++ : brgS++; }
-    else if (batal) { allX++; isJkn ? jknX++ : brgX++; }
+    if (batal)      { allX++; isJkn ? jknX++ : brgX++; }
+    else if (done)  { allS++; isJkn ? jknS++ : brgS++; }
     else            { allB++; isJkn ? jknB++ : brgB++; }
   });
 
@@ -412,7 +419,7 @@ async function loadDashboard(start, end) {
           const done = isDone(d.status);
           const batal= String(d.status||'').toLowerCase().includes('batal');
           if (batal) return;
-          const isJkn = src.includes('mobile jkn') || src.includes('jkn');
+          const isJkn = src === 'mobile jkn';
           if (isJkn)  { done ? jknS++   : jknB++; }
           else        { done ? bridgS++ : bridgB++; }
         });
@@ -437,9 +444,9 @@ async function loadDashboard(start, end) {
   let cntS=0,cntB=0,cntBatal=0;
   dashData.forEach(d => {
     const s = String(d.status||'').toLowerCase();
-    if (s.includes('selesai')) cntS++;
-    else if (s.includes('batal')) cntBatal++;
-    else cntB++;
+    if (s.includes('batal'))        cntBatal++;
+    else if (s.includes('selesai')) cntS++;
+    else                             cntB++;
   });
   $('sc-total').textContent   = dashData.length;
   $('sc-selesai').textContent = cntS;
@@ -460,7 +467,7 @@ async function loadDashboard(start, end) {
   renderPctSection(dashData);
 
   // Belum dilayani (hanya dari tanggal end / hari terakhir)
-  const belumList = dashData.filter(d => !isDone(d.status) && d.tanggal === end);
+  const belumList = dashData.filter(d => !isBenarSelesai(d.status) && d.tanggal === end);
   $('belumCount').textContent = `${belumList.length} pasien`;
   belumCard.style.display = 'block';
   renderBelumTable(belumList, start, end);
@@ -539,8 +546,8 @@ function updateChipCounts(data) {
   let cS=0,cB=0,cBatal=0;
   data.forEach(d => {
     const s = String(d.status||'').toLowerCase();
-    if (s.includes('selesai')) cS++;
-    else if (s.includes('batal')) cBatal++;
+    if (s.includes('batal'))   cBatal++;
+    else if (s.includes('selesai')) cS++;
     else cB++;
   });
   $('cnt-semua').textContent   = data.length;
@@ -572,6 +579,8 @@ function initDT() {
           if (dtTop && stickyCard && !stickyCard.contains(dtTop)) {
             stickyCard.appendChild(dtTop);
           }
+          // Re-apply task done marker setelah setiap draw (filter/paging)
+          if (window._taskDoneMap) markTaskButtons(window._taskDoneMap);
         },
         paging:      true,
         pageLength:  25,
@@ -601,6 +610,9 @@ function initDT() {
         ],
         dom: 'rt<"dt-bottom"ip>',
         initComplete: function() {
+          // Mark task done setelah DataTables selesai render
+          fetchAndMarkTaskDone(_lastRenderData);
+
           // Buat search box manual dan inject ke sticky card
           const api      = this.api();
           const stickyCard = document.querySelector('.sticky-card');
@@ -641,8 +653,11 @@ function initDT() {
   }, 50);
 }
 
+let _lastRenderData = [];
+
 function renderTable(data) {
   destroyDT();
+  _lastRenderData = data || [];
   const tbody     = $('tblBody');
   const filterRow = $('filterRow');
   const statsBar  = $('statsBar');
@@ -664,15 +679,16 @@ function renderTable(data) {
     const estimasi = item.estimasidilayani
       ? new Date(Number(item.estimasidilayani)).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',hour12:false})
       : '-';
-    const isSelesai = String(item.status||'').toLowerCase().includes('selesai');
-    const isBatal   = String(item.status||'').toLowerCase().includes('batal');
-    const showTasks = !isSelesai && !isBatal;
+    const isBatal    = String(item.status||'').toLowerCase().includes('batal');
+    const isSelesai  = String(item.status||'').toLowerCase().includes('selesai');
+    const showTasks  = !isBatal; // status selesai tetap bisa kirim task farmasi
+    const showBatal  = !isBatal && !isSelesai; // batal hanya kalau belum selesai/batal
     const taskBtns  = showTasks ? [3,4,5,6,7].map(tid =>
       `<button class="btn-task btn-send-task" data-task="${tid}" data-kode="${item.kodebooking}" data-tgl="${item.tanggal}" title="${TASK_NAMES[tid]}">TASK ${tid}</button>`
     ).join('') : '';
     const utilGroup = `
       <button class="btn-history btn-show-riwayat" data-kode="${item.kodebooking}"><i class="fas fa-history"></i> Riwayat</button>
-      ${showTasks ? `<button class="btn-batal btn-batal-antrean"
+      ${showBatal ? `<button class="btn-batal btn-batal-antrean"
         data-kode="${item.kodebooking}"
         data-rm="${item.norekammedis||''}"
         data-poli="${item.kodepoli||''}"
@@ -699,8 +715,10 @@ function renderTable(data) {
       <td style="font-size:12.5px;">${estimasi}</td>
       <td>
         <div class="aksi-wrap">
-          <div class="task-group">${taskBtns}</div>
-          <div class="util-group">${utilGroup}</div>
+          <div class="aksi-row">
+            <div class="task-group">${taskBtns}</div>
+            <div class="util-group">${utilGroup}</div>
+          </div>
         </div>
       </td>`;
     tbody.appendChild(tr);
@@ -773,6 +791,109 @@ function bindTableButtons() {
 }
 
 // ════════════════════════════════════════
+//  TASK DONE MARKER
+// ════════════════════════════════════════
+async function fetchAndMarkTaskDone(data) {
+  const belumList = data.filter(d => !isDone(d.status));
+  if (belumList.length === 0) return;
+
+  const bookings = belumList.map(d => d.kodebooking).filter(Boolean);
+  if (bookings.length === 0) return;
+
+  try {
+    const resp = await fetch('get_task_done.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookings }),
+    });
+    const result = await resp.json();
+    if (!result?.data) return;
+    markTaskButtons(result.data);
+  } catch(e) { console.error('[task_done]', e); }
+}
+
+const TASKS_POLI    = [3,4,5];
+const TASKS_FARMASI = [6,7];
+const ALL_TASKS     = [3,4,5,6,7];
+
+function markTaskButtons(doneMap) {
+  window._taskDoneMap = doneMap;
+
+  document.querySelectorAll('.aksi-wrap').forEach(wrap => {
+    const taskBtns = wrap.querySelectorAll('.btn-send-task');
+    if (!taskBtns.length) return;
+
+    const kode      = taskBtns[0].dataset.kode;
+    const done      = doneMap[kode] ?? [];
+    const poliDone  = TASKS_POLI.every(t => done.includes(t));
+    const farmasiAda= done.includes(7);
+
+    // Hapus badge lama
+    wrap.querySelectorAll('.task-complete-badge,.task-poli-badge').forEach(el => el.remove());
+
+    // ── Farmasi selesai (task 7 ada) → hanya Riwayat ──────────
+    if (farmasiAda) {
+      const row = wrap.querySelector('.aksi-row');
+      if (row) row.innerHTML = `
+        <div class="util-group" style="align-items:center;gap:8px;">
+          <span class="task-complete-badge" style="margin:0;">
+            <i class="fas fa-check-double"></i> Semua Task Selesai
+          </span>
+          <button class="btn-history btn-show-riwayat" data-kode="${wrap.querySelector('.btn-show-riwayat')?.dataset?.kode||''}">
+            <i class="fas fa-history"></i> Riwayat
+          </button>
+        </div>`;
+      // Re-bind riwayat
+      const rv = wrap.querySelector('.btn-show-riwayat');
+      if (rv) rv.addEventListener('click', async () => {
+        const kode = rv.dataset.kode;
+        $('modalRiwayatTitle').textContent = `Task Terkirim  •  ${kode}`;
+        $('timelineContainer').innerHTML = `<div class="tl-empty"><i class="fas fa-spinner fa-spin"></i><p>Memuat...</p></div>`;
+        openModal('modalRiwayat');
+        renderRiwayatTable(await fetchRiwayatTask(kode));
+      });
+      return;
+    }
+
+    // ── Poli selesai (3,4,5 ada) → sembunyikan 3,4,5 tampil 6,7 ──
+    if (poliDone) {
+      // Sembunyikan task 3,4,5
+      taskBtns.forEach(btn => {
+        const tid = Number(btn.dataset.task);
+        btn.style.display = TASKS_POLI.includes(tid) ? 'none' : '';
+        if (!TASKS_POLI.includes(tid)) {
+          btn.disabled = false;
+          if (done.includes(tid)) {
+            btn.classList.add('task-done');
+            btn.innerHTML = `<i class="fas fa-check" style="font-size:9px;"></i> TASK ${tid}`;
+            btn.title     = `TASK ${tid} — sudah dikirim`;
+          }
+        }
+      });
+      // Badge Poli Selesai di depan task-group
+      const tg = wrap.querySelector('.task-group');
+      if (tg) {
+        const badge = document.createElement('span');
+        badge.className = 'task-poli-badge';
+        badge.innerHTML = `<i class="fas fa-check-circle"></i> Poli Selesai`;
+        tg.insertBefore(badge, tg.firstChild);
+      }
+      return;
+    }
+
+    // ── Default: mark tombol yang sudah dikirim ────────────────
+    taskBtns.forEach(btn => {
+      const tid = Number(btn.dataset.task);
+      if (done.includes(tid)) {
+        btn.classList.add('task-done');
+        btn.innerHTML = `<i class="fas fa-check" style="font-size:9px;"></i> TASK ${tid}`;
+        btn.title     = `TASK ${tid} — sudah dikirim`;
+      }
+    });
+  });
+}
+
+// ════════════════════════════════════════
 //  MODAL WAKTU
 // ════════════════════════════════════════
 $('btnBatalWaktu').addEventListener('click', () => { closeModal('modalWaktu'); activeTask=null; });
@@ -794,7 +915,44 @@ $('btnKirimWaktu').addEventListener('click', async () => {
   try {
     const resp = await fetch('send_request.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kodebooking:activeTask.kodebooking,taskid:activeTask.taskid,waktu:epoch})});
     const data = await resp.json();
-    if (data?.metadata?.code===200) { showToast(`TASK ${activeTask.taskid} berhasil dikirim!`,'success'); closeModal('modalWaktu'); activeTask=null; }
+    if (data?.metadata?.code===200) {
+      showToast(`TASK ${activeTask.taskid} berhasil dikirim!`,'success');
+
+      // Update penanda tombol task langsung tanpa reload
+      const { taskid, kodebooking } = activeTask;
+      if (!window._taskDoneMap) window._taskDoneMap = {};
+      if (!window._taskDoneMap[kodebooking]) window._taskDoneMap[kodebooking] = [];
+      if (!window._taskDoneMap[kodebooking].includes(taskid)) {
+        window._taskDoneMap[kodebooking].push(taskid);
+      }
+
+      // Update tombol yang diklik langsung
+      document.querySelectorAll(`.btn-send-task[data-kode="${kodebooking}"][data-task="${taskid}"]`).forEach(btn => {
+        btn.classList.add('task-done');
+        btn.innerHTML = `<i class="fas fa-check" style="font-size:9px;"></i> TASK ${taskid}`;
+        btn.title = `TASK ${taskid} — sudah dikirim`;
+      });
+
+      // Cek apakah semua task sudah lengkap setelah kirim ini
+      const group = document.querySelector(`.task-group:has([data-kode="${kodebooking}"])`);
+      if (group && window._taskDoneMap) {
+        const done    = window._taskDoneMap[kodebooking] ?? [];
+        const allDone = [3,4,5,6,7].every(t => done.includes(t));
+        const oldB    = group.querySelector('.task-complete-badge');
+        if (oldB) oldB.remove();
+        if (allDone) {
+          const badge = document.createElement('div');
+          badge.className = 'task-complete-badge';
+          badge.innerHTML = '<i class="fas fa-check-double"></i> Semua Task Terkirim';
+          group.appendChild(badge);
+        }
+      }
+      // Re-apply markTaskButtons untuk update badge lengkap
+      if (window._taskDoneMap) markTaskButtons(window._taskDoneMap);
+
+      closeModal('modalWaktu');
+      activeTask = null;
+    }
     else showToast(data?.metadata?.message||'Gagal mengirim task.','error');
   } catch { showToast('Terjadi kesalahan koneksi.','error'); }
   finally { btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> Kirim'; }
@@ -978,6 +1136,7 @@ function applyFilter(filter) {
   if (f==='selesai') result = allData.filter(d=>String(d.status||'').toLowerCase().includes('selesai'));
   else if (f==='belum') result = allData.filter(d=>{const s=String(d.status||'').toLowerCase();return!s.includes('selesai')&&!s.includes('batal');});
   else if (f==='batal') result = allData.filter(d=>String(d.status||'').toLowerCase().includes('batal'));
+  // Note: filter tetap pakai status BPJS untuk display — hanya logika tombol yang berbeda
   renderTable(result);
 }
 
@@ -1042,10 +1201,14 @@ async function computeStats(data, tanggal) {
   bar.style.display='block';
   let jknS=0,jknB=0,bridgS=0,bridgB=0;
   data.forEach(d=>{
-    const src=String(d.sumberdata||'').toLowerCase();
-    const done=isDone(d.status);
-    if (src.includes('mobile jkn')||src.includes('jkn')) { done?jknS++:jknB++; }
-    else { done?bridgS++:bridgB++; }
+    const src   = String(d.sumberdata||'').toLowerCase();
+    const s     = String(d.status||'').toLowerCase();
+    const done  = s.includes('selesai');
+    const batal = s.includes('batal');
+    if (batal) return; // exclude batal dari hitungan JKN/Bridging
+    const isJkn = src === 'mobile jkn';
+    if (isJkn) { done ? jknS++ : jknB++; }
+    else        { done ? bridgS++ : bridgB++; }
   });
   $('jkn-selesai').textContent     = jknS;
   $('jkn-belum').textContent       = jknB;

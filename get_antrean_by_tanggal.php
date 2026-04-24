@@ -29,19 +29,24 @@ if (!$force) {
              WHERE tanggal = ?
              AND is_stale = 0
              AND cached_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
-             LIMIT 1"
+             ORDER BY id ASC"
         );
         $cacheStmt->execute([$tanggal, $ttlMinute]);
-        $cached = $cacheStmt->fetch();
+        $cachedRows = $cacheStmt->fetchAll();
 
-        if ($cached) {
-            $list = json_decode($cached['data_json'], true);
-            if (is_array($list)) {
+        if (!empty($cachedRows)) {
+            $list      = [];
+            $cachedAt  = $cachedRows[0]['cached_at'];
+            foreach ($cachedRows as $crow) {
+                $item = json_decode($crow['data_json'], true);
+                if (is_array($item)) $list[] = $item;
+            }
+            if (!empty($list)) {
                 echo json_encode([
-                    'metadata'    => ['code' => 200, 'message' => 'OK (cached)'],
-                    'response'    => $list,
-                    'from_cache'  => true,
-                    'cached_at'   => $cached['cached_at'],
+                    'metadata'   => ['code' => 200, 'message' => 'OK (cached)'],
+                    'response'   => $list,
+                    'from_cache' => true,
+                    'cached_at'  => $cachedAt,
                 ]);
                 exit;
             }
